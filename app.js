@@ -900,31 +900,49 @@ async function loadImages() {
 function createListeningClocks(hourlyData) {
     const createClockChart = (canvasId, data, label) => {
         const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
+        if (!canvas) {
+            console.error(`Canvas ${canvasId} not found`);
+            return;
+        }
         
         // Properly destroy existing chart
         if (charts[canvasId]) {
-            charts[canvasId].destroy();
+            if (typeof charts[canvasId].destroy === 'function') {
+                charts[canvasId].destroy();
+            }
             charts[canvasId] = null;
         }
         
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error(`Could not get context for ${canvasId}`);
+            return;
+        }
         
         // Check if data has valid numbers
         const hasValidData = data.some(d => d > 0 && isFinite(d));
         if (!hasValidData) {
             console.log(`No valid data for ${canvasId}`);
+            // Draw empty clock
+            drawEmptyClock(canvas, ctx);
             return;
         }
 
-        // Set canvas size
-        const size = Math.min(canvas.parentElement.clientWidth, 500);
-        canvas.width = size;
-        canvas.height = size;
+        // Get parent width for responsive sizing
+        const parentWidth = canvas.parentElement.clientWidth;
+        const size = Math.min(parentWidth, 500);
+        
+        // Set canvas size with device pixel ratio for sharp rendering
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = size + 'px';
+        canvas.style.height = size + 'px';
+        ctx.scale(dpr, dpr);
         
         const centerX = size / 2;
         const centerY = size / 2;
-        const maxRadius = size * 0.4;
+        const maxRadius = size * 0.35;
         const innerRadius = size * 0.05;
         
         // Find max value for scaling
@@ -935,18 +953,16 @@ function createListeningClocks(hourlyData) {
         
         // Draw each hour segment
         for (let i = 0; i < 24; i++) {
-            const angle = (i * 15 - 90) * Math.PI / 180; // 15 degrees per hour, start at top
+            const angle = (i * 15 - 90) * Math.PI / 180;
             const nextAngle = ((i + 1) * 15 - 90) * Math.PI / 180;
             
             // Calculate radius based on data value
             const normalizedValue = maxValue > 0 ? data[i] / maxValue : 0;
             const radius = innerRadius + (maxRadius * normalizedValue);
             
-            // Draw the segment as a triangle/wedge
+            // Draw the segment
             ctx.beginPath();
             ctx.moveTo(centerX, centerY);
-            
-            // Create arc for the outer edge
             ctx.arc(centerX, centerY, radius, angle, nextAngle);
             ctx.lineTo(centerX, centerY);
             
@@ -956,8 +972,8 @@ function createListeningClocks(hourlyData) {
             ctx.fill();
             
             // Draw the radial line
-            const lineEndX = centerX + Math.cos(angle) * (maxRadius + 20);
-            const lineEndY = centerY + Math.sin(angle) * (maxRadius + 20);
+            const lineEndX = centerX + Math.cos(angle) * (maxRadius + 15);
+            const lineEndY = centerY + Math.sin(angle) * (maxRadius + 15);
             
             ctx.beginPath();
             ctx.moveTo(centerX, centerY);
@@ -973,9 +989,11 @@ function createListeningClocks(hourlyData) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        const labelRadius = maxRadius + 35;
+        const labelRadius = maxRadius + 30;
         
-        for (let i = 0; i < 24; i++) {
+        const keyHours = [0, 6, 12, 18]; // Show only 12AM, 6AM, 12PM, 6PM
+        
+        for (let i of keyHours) {
             const angle = (i * 15 - 90) * Math.PI / 180;
             const x = centerX + Math.cos(angle) * labelRadius;
             const y = centerY + Math.sin(angle) * labelRadius;
@@ -989,19 +1007,59 @@ function createListeningClocks(hourlyData) {
             ctx.fillText(labelText, x, y);
         }
         
-        // Store a reference for tooltip handling
+        // Store canvas reference and cleanup function
         charts[canvasId] = {
             canvas: canvas,
             data: data,
             label: label,
-            destroy: () => {
-                canvas.removeEventListener('mousemove', handleMouseMove);
-                ctx.clearRect(0, 0, size, size);
+            destroy: function() {
+                if (this.canvas && this.canvas.parentElement) {
+                    const tooltip = this.canvas.parentElement.querySelector('.clock-tooltip');
+                    if (tooltip) tooltip.remove();
+                }
+                const ctx = this.canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                }
             }
         };
         
         // Add hover tooltip
+        addClockTooltip(canvas, data, label, centerX, centerY, innerRadius, maxRadius);
+    };
+    
+    function drawEmptyClock(canvas, ctx) {
+        const parentWidth = canvas.parentElement.clientWidth;
+        const size = Math.min(parentWidth, 500);
+        
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = size + 'px';
+        canvas.style.height = size + 'px';
+        ctx.scale(dpr, dpr);
+        
+        const centerX = size / 2;
+        const centerY = size / 2;
+        const maxRadius = size * 0.35;
+        
+        ctx.clearRect(0, 0, size, size);
+        
+        // Draw placeholder text
+        ctx.fillStyle = '#666';
+        ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('No data available', centerX, centerY);
+    }
+    
+    function addClockTooltip(canvas, data, label, centerX, centerY, innerRadius, maxRadius) {
+        // Remove existing tooltip if any
+        const existingTooltip = canvas.parentElement.querySelector('.clock-tooltip');
+        if (existingTooltip) existingTooltip.remove();
+        
         const tooltip = document.createElement('div');
+        tooltip.className = 'clock-tooltip';
         tooltip.style.cssText = `
             position: absolute;
             background: #1a1a1a;
@@ -1013,6 +1071,7 @@ function createListeningClocks(hourlyData) {
             pointer-events: none;
             display: none;
             z-index: 1000;
+            white-space: nowrap;
         `;
         canvas.parentElement.style.position = 'relative';
         canvas.parentElement.appendChild(tooltip);
@@ -1022,8 +1081,12 @@ function createListeningClocks(hourlyData) {
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
-            const dx = x - centerX;
-            const dy = y - centerY;
+            // Convert to canvas coordinates
+            const canvasX = (x / rect.width) * canvas.style.width.replace('px', '');
+            const canvasY = (y / rect.height) * canvas.style.height.replace('px', '');
+            
+            const dx = canvasX - centerX;
+            const dy = canvasY - centerY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance > innerRadius && distance < maxRadius + 20) {
@@ -1052,7 +1115,7 @@ function createListeningClocks(hourlyData) {
         canvas.addEventListener('mouseleave', () => {
             tooltip.style.display = 'none';
         });
-    };
+    }
 
     createClockChart('streamsClock', hourlyData.hourlyStreams, 'streams');
     createClockChart('minutesClock', hourlyData.hourlyMinutes, 'minutes');
