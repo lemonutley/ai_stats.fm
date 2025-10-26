@@ -15,7 +15,7 @@ let isRendering = false;
 // Spotify API credentials
 const SPOTIFY_CLIENT_ID = '975915ce02eb42a18f959d24e36c6099'; // Replace with your client ID
 const SPOTIFY_CLIENT_SECRET = '37ff828db2294fbc8ad4caa1de44d13e'; // Replace with your client secret
-const REDIRECT_URI = 'http://127.0.0.1:8080'; // Replace with your redirect URI
+const REDIRECT_URI = 'https://lemonutley.github.io/ai_stats.fm/'; // Replace with your redirect URI
 
 // Initialize IndexedDB for images, data, and tokens
 async function initDB() {
