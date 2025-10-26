@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>stats.fm - Your Spotify Stats</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1ed760" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            stats.fm
+        </div>
+        <div class="header-nav">
+            <a href="#">Plus</a>
+            <a href="#">Support</a>
+            <a href="#">Feedback</a>
+            <a href="#" onclick="clearSavedData(); return false;">Clear Data</a>
+        </div>
+        <div class="header-right">
+            <div id="syncStatus" style="font-size: 0.85rem; margin-right: 16px;"></div>
+            <input type="text" class="search-input" placeholder="Search">
+            <button class="header-upload-btn" onclick="document.getElementById('fileInput').click()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                Upload Files
+            </button>
+            <div class="profile-icon"></div>
+        </div>
+        <input type="file" id="fileInput" multiple accept=".json" style="display: none;">
+    </div>
+
+    <div class="container">
+        <div class="upload-prompt" id="uploadPrompt">
+            <h2>Upload Your Spotify Data</h2>
+            <p>Select your Spotify extended streaming history JSON files to see your stats</p>
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                Choose Files
+            </button>
+        </div>
+
+        <div class="content" id="content">
+            <div class="profile-header">
+                <div class="profile-avatar"></div>
+                <div class="profile-info">
+                    <h1 class="profile-name">Your Stats</h1>
+                    <div class="profile-meta">
+                        <span id="friendCount">1 Friend</span>
+                        <span class="separator">•</span>
+                        <span class="edit-profile">Edit profile</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="period-selector">
+                <button class="period-btn" data-period="month">4 weeks</button>
+                <button class="period-btn" data-period="6months">6 months</button>
+                <button class="period-btn" data-period="year">1 year</button>
+                <button class="period-btn active" data-period="all">Lifetime</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalStreams">0</div>
+                    <div class="stat-label">streams</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalMinutes">0</div>
+                    <div class="stat-label">minutes streamed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalHours">0</div>
+                    <div class="stat-label">hours streamed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="uniqueTracks">0</div>
+                    <div class="stat-label">different tracks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="uniqueArtists">0</div>
+                    <div class="stat-label">different artists</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="uniqueAlbums">0</div>
+                    <div class="stat-label">different albums</div>
+                </div>
+            </div>
+
+            <div class="section" id="genresSection">
+                <div class="section-header">
+                    <h2>Top genres</h2>
+                    <p class="section-subtitle">Your top genres from the past <span id="genrePeriod">lifetime</span></p>
+                </div>
+                <div class="genre-tags" id="genreTags"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2>Top tracks</h2>
+                    <p class="section-subtitle">Your top tracks from the past <span id="trackPeriod">lifetime</span></p>
+                    <div class="section-controls">
+                        <button class="control-btn">⊞</button>
+                        <button class="control-btn">‹</button>
+                        <button class="control-btn">›</button>
+                        <button class="control-btn">⋯</button>
+                    </div>
+                </div>
+                <div class="items-carousel" id="topTracksCarousel"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2>Top artists</h2>
+                    <p class="section-subtitle">Your top artists from the past <span id="artistPeriod">lifetime</span></p>
+                    <div class="section-controls">
+                        <button class="control-btn">⊞</button>
+                        <button class="control-btn">‹</button>
+                        <button class="control-btn">›</button>
+                        <button class="control-btn">⋯</button>
+                    </div>
+                </div>
+                <div class="items-carousel circular" id="topArtistsCarousel"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2>Top albums</h2>
+                    <p class="section-subtitle">Your top albums from the past <span id="albumPeriod">lifetime</span></p>
+                    <div class="section-controls">
+                        <button class="control-btn">⊞</button>
+                        <button class="control-btn">‹</button>
+                        <button class="control-btn">›</button>
+                        <button class="control-btn">⋯</button>
+                    </div>
+                </div>
+                <div class="items-carousel" id="topAlbumsCarousel"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2>Listening clocks</h2>
+                    <p class="section-subtitle">Your listening habits throughout the day from the past <span id="clockPeriod">lifetime</span></p>
+                </div>
+                <div class="clocks-container">
+                    <div class="clock-wrapper">
+                        <canvas id="streamsClock"></canvas>
+                        <div class="clock-label">streams</div>
+                    </div>
+                    <div class="clock-wrapper">
+                        <canvas id="minutesClock"></canvas>
+                        <div class="clock-label">minutes streamed</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2>Recent streams</h2>
+                    <p class="section-subtitle">Your recently played tracks</p>
+                </div>
+                <div class="recent-streams" id="recentStreams"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
